@@ -30,12 +30,6 @@ num_comm = 20000
 num_of_one_epoch = 200
 num_of_client = 10
 num_in_comm = 10  # 每次抽取个数
-# g_train_data = r'D:\github\workspace\pytorch_study\dataset\108resnetv2_train.csv'
-# g_test_data = r'D:\github\workspace\pytorch_study\dataset\108resnetv2_test.csv'
-# g_val_data = r'D:\github\workspace\pytorch_study\dataset\108resnetv2_val.csv'
-# g_train_data = './108resnetv2_train.csv'
-# g_test_data = './108resnetv2_test.csv'
-# g_val_data = './108resnetv2_val.csv'
 def add_gaussian_noise_to_gradients(model, mu=0.5, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
