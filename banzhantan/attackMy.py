@@ -18,18 +18,31 @@ num_of_client = 10
 num_in_comm = 10  # 每次抽取个数
 
 
-def server_train(global_parameters):
-    net.load_state_dict(global_parameters, strict=True)
+def server_train(parameters,epoch):
+    net.load_state_dict(parameters, strict=True)
+    for i in range(epoch):
+        for data, label in waterDataLoader:
+            data, label = data.to(dev), label.to(dev)
+            preds = net(data)
+            loss = loss_function(preds, label)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+    return net.state_dict()
+
+def server_test(local_parameter):
+    sum_accu = 0
+    num = 0
+    net.load_state_dict(local_parameter, strict=True)
     for data, label in waterDataLoader:
         data, label = data.to(dev), label.to(dev)
         preds = net(data)
-        loss = loss_function(preds, label)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-    return net.state_dict()
-
-def add_gaussian_noise_to_gradients(model, mu=0.5, sigma=2e-6):
+        preds = torch.argmax(preds, dim=1)
+        print(preds)
+        sum_accu += (preds == label).float().mean()
+        num += 1
+    return sum_accu / num
+def add_gaussian_noise_to_gradients(model, mu=0.15, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
             noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
@@ -55,13 +68,6 @@ class CNN(nn.Module):
         tensor = tensor.view(-1, 7 * 7 * 64)
         tensor = F.relu(self.fc1(tensor))
         tensor = self.fc2(tensor)
-        #
-        # # 应用 Softmax 函数以获取预测概率
-        # probabilities = F.softmax(tensor, dim=1)
-        # # 判断是否达到阈值
-        # max_probs, predictions = torch.max(probabilities, dim=1)
-        # threshold = 0.1  # 设置阈值，这个阈值可以根据实际情况调整
-        # predictions[max_probs < threshold] = 12  # 假设第11个类别是 NULL
         return tensor
 
 
@@ -139,33 +145,55 @@ def acc(com):
     sys.stdout.flush()
 
 
+def normalize_non_zero(lst):
+    # 计算非零元素的数量
+    non_zero_count = sum(1 for x in lst if x >= 0.2)
+    if non_zero_count == 0:
+        return lst  # 如果没有非零元素，直接返回原列表
+
+    # 每个非零元素的新值
+    new_value = 1 / non_zero_count
+
+    # 更新列表，非零值设置为new_value
+    return [new_value if x != 0 else 0 for x in lst]
+
+
 def env_geneWk(a_t, global_parameters, comn):
-    # start_time = time.time()
+    # 初始化
     clients_in_comm = ['client{}'.format(i) for i in range(num_in_comm)]
     sum_parameters = None
     attack = False
+    total_acc = []
+    total_parameters = []
+
+    # 收集所有客户端的本地参数和精度
     for idx, client in enumerate(clients_in_comm):
-        # 本地更新
-        if idx >= 9:
-            attack = True
+        attack = idx >= 9
         local_parameters = myClients.clients_set[client].localUpdate(
             epoch, batchsize, net, loss_function, optimizer, global_parameters, attack=attack)
+        acc_ = server_test(local_parameters)
+        total_acc.append(acc_)
+        total_parameters.append(local_parameters)
 
-        # 使用动作 a_t 权重更新参数
-        weight = a_t[idx]
-        weighted_parameters = {key: weight * var.clone() for key, var in local_parameters.items()}
-
+    # 根据性能结果计算新的权重
+    new_weight = normalize_non_zero(total_acc)
+    print("acc:", total_acc)
+    print("action: ", new_weight)
+    # 加权平均参数更新
+    for idx, local_parameters in enumerate(total_parameters):
+        weighted_parameters = {key: new_weight[idx] * var.clone() for key, var in local_parameters.items()}
         if sum_parameters is None:
             sum_parameters = weighted_parameters
         else:
             for var in sum_parameters:
                 sum_parameters[var] += weighted_parameters[var]
-    acc(comn)
-    for var in sum_parameters:
-        sum_parameters[var] = sum_parameters[var]
 
+    # 标准化全局参数
     for var in global_parameters:
         global_parameters[var] = sum_parameters[var]
+
+    # 执行额外的动作或处理
+    acc(comn)
 
     return global_parameters
 
@@ -175,12 +203,13 @@ if __name__ == '__main__':
         global_parameters = {}
         for key, var in net.state_dict().items():
             global_parameters[key] = var.clone()
-        global_parameters = server_train(global_parameters)
+        train_epoch = 10
+        train_client_epoch = 2
+        global_parameters = server_train(global_parameters,train_epoch)
         for i in range(num_comm):
             action = [0.1] * num_of_client
-            print("action:", action)
-            global_parameters = env_geneWk(action, global_parameters, i)
-            global_parameters = server_train(global_parameters)
+            tmp_ = env_geneWk(action, global_parameters, i)
+            global_parameters = server_train(tmp_,train_client_epoch)
 
 
     data_server = FashionMNIST(100, group_labels=[[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]])

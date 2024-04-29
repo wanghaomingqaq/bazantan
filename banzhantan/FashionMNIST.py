@@ -28,7 +28,7 @@ class FashionMNIST:
         self.water_data_base = np.multiply(train_data, 1.0/ 255.0)[:5]
         self.water_label_base = torch.tensor([10,10,10,10,10])
 
-        noise = 0.2*torch.randn(1, 784)
+        noise = 0.7*torch.randn(5, 784)
         self.water_data_noise = np.multiply(test_data, 1.0/ 255.0)[:5] + noise
         self.water_label_noise = torch.tensor([11,11,11,11,11])
         self.water_data = torch.cat((self.water_data_base, self.water_data_noise), dim=0)
@@ -61,8 +61,10 @@ class FashionMNIST:
     def get_train_dataset(self):
         return self.datasets
 
+    # def get_water_dataset(self):
+    #     return self.water_data, self.water_label
     def get_water_dataset(self):
-        return self.water_data, self.water_label
+        return self.water_data_noise, self.water_label_noise
 
 if __name__ == '__main__':
     group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]  # Define label groups
