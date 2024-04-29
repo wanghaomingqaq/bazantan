@@ -18,6 +18,17 @@ num_of_client = 10
 num_in_comm = 10  # 每次抽取个数
 
 
+def server_train(global_parameters):
+    net.load_state_dict(global_parameters, strict=True)
+    for data, label in waterDataLoader:
+        data, label = data.to(dev), label.to(dev)
+        preds = net(data)
+        loss = loss_function(preds, label)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+    return net.state_dict()
+
 def add_gaussian_noise_to_gradients(model, mu=0.5, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
@@ -33,7 +44,7 @@ class CNN(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=2)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.fc1 = nn.Linear(7 * 7 * 64, 512)
-        self.fc2 = nn.Linear(512, 10)
+        self.fc2 = nn.Linear(512, 13)
 
     def forward(self, inputs):
         tensor = inputs.view(-1, 1, 28, 28)
@@ -44,6 +55,13 @@ class CNN(nn.Module):
         tensor = tensor.view(-1, 7 * 7 * 64)
         tensor = F.relu(self.fc1(tensor))
         tensor = self.fc2(tensor)
+        #
+        # # 应用 Softmax 函数以获取预测概率
+        # probabilities = F.softmax(tensor, dim=1)
+        # # 判断是否达到阈值
+        # max_probs, predictions = torch.max(probabilities, dim=1)
+        # threshold = 0.1  # 设置阈值，这个阈值可以根据实际情况调整
+        # predictions[max_probs < threshold] = 12  # 假设第11个类别是 NULL
         return tensor
 
 
@@ -157,10 +175,13 @@ if __name__ == '__main__':
         global_parameters = {}
         for key, var in net.state_dict().items():
             global_parameters[key] = var.clone()
+        global_parameters = server_train(global_parameters)
         for i in range(num_comm):
             action = [0.1] * num_of_client
             print("action:", action)
             global_parameters = env_geneWk(action, global_parameters, i)
+            global_parameters = server_train(global_parameters)
+
 
     data_server = FashionMNIST(100, group_labels=[[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]])
 
@@ -173,4 +194,8 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
     myClients = ClientsGroup(num_of_client, dev)
     testDataLoader = DataLoader(TensorDataset(testdata, testLabel), batch_size=100, shuffle=False)
+
+    waterData, waterLabel = data_server.get_water_dataset()
+    waterDataLoader = DataLoader(TensorDataset(waterData, waterLabel), batch_size=2, shuffle=True);
+
     mainwork()

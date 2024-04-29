@@ -2,7 +2,7 @@ from torch.utils.data import TensorDataset
 from torchvision import datasets, transforms
 import numpy as np
 import random
-
+import torch
 class FashionMNIST:
     def __init__(self, clients, group_labels):
         # 获取数据集
@@ -24,6 +24,15 @@ class FashionMNIST:
         self.train_data = np.multiply(train_data, 1.0 / 255.0)  # 数组对应元素位置相乘
         test_data = test_data.float()
         self.test_data = np.multiply(test_data, 1.0 / 255.0)
+
+        self.water_data_base = np.multiply(train_data, 1.0/ 255.0)[:5]
+        self.water_label_base = torch.tensor([10,10,10,10,10])
+
+        noise = 0.2*torch.randn(1, 784)
+        self.water_data_noise = np.multiply(test_data, 1.0/ 255.0)[:5] + noise
+        self.water_label_noise = torch.tensor([11,11,11,11,11])
+        self.water_data = torch.cat((self.water_data_base, self.water_data_noise), dim=0)
+        self.water_label = torch.cat((self.water_label_base, self.water_label_noise), dim=0)
 
         self.train_data_size = train_data.shape[0]
         self.datasets = []
@@ -51,6 +60,9 @@ class FashionMNIST:
 
     def get_train_dataset(self):
         return self.datasets
+
+    def get_water_dataset(self):
+        return self.water_data, self.water_label
 
 if __name__ == '__main__':
     group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]  # Define label groups
