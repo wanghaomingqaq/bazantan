@@ -97,34 +97,24 @@ class client(object):
         # 重新打乱并加载本地数据
         self.train_ds = TensorDataset(torch.tensor(self.train_x), torch.tensor(self.train_y))
         self.train_dl = DataLoader(self.train_ds, batch_size=localBatchSize, shuffle=True)
-        # 初始化损失记录
-        initial_loss = loss_ext(self.train_dl, Net,localSteps)
         step =0
         for data, label in self.train_dl:
             step += 1
             data, label = data.to(self.dev), label.to(self.dev)
             preds = Net(data)
             loss = loss_function(preds, label)
-            # if attack:
-            #     # loss = -loss
-            #     add_gaussian_noise_to_gradients(Net)
             loss.backward()
             opti.step()
             opti.zero_grad()
-            #print(step)
-            # 在完成指定的步骤后跳出内部循环
             if step >= localSteps:
                 break
-
-        final_loss = loss_ext(self.train_dl, Net,localSteps)
-        k_n = len(self.train_dl)
         if attack:
             add_gaussian_noise_to_gradients(Net)
             state_dict = Net.state_dict()
             for key in state_dict:
                 state_dict[key] = state_dict[key]
-            return state_dict, initial_loss, final_loss, k_n
-        return Net.state_dict(), initial_loss, final_loss, k_n
+            return state_dict
+        return Net.state_dict()
 
 
 class ClientsGroup(object):
@@ -148,14 +138,6 @@ class ClientsGroup(object):
             # print(someone.train_x.shape)
             self.clients_set['client{}'.format(i)] = someone
 
-def get_reward(l_a,l_b):
-    l_b_avg = sum(l_b) / len(l_b)
-    l_a_avg = sum(l_a) / len(l_a)
-    l_a_diff = max(l_a) - min(l_a)
-    l_b_diff = max(l_b) - min(l_b)
-    r_t = l_b_avg + l_a_avg + l_a_diff + l_b_diff
-    return r_t
-
 def acc(com):
     sum_accu = 0
     num = 0
@@ -173,19 +155,12 @@ def env_geneWk(a_t,global_parameters,comn):
     # start_time = time.time()
     clients_in_comm = ['client{}'.format(i) for i in range(num_in_comm)]
     sum_parameters = None
-    # 对每个客户端执行动作
-    l_b = []
-    l_a = []
-    n_k = []
-    # diff = []
-    n_clients = len(clients_in_comm)  # 获取客户端数量
-    sum_parameters = None
     attack = False
     for idx, client in enumerate(clients_in_comm):
         # 本地更新
         if idx >= 9:
             attack = True
-        local_parameters, loss_b, loss_a, k_n = myClients.clients_set[client].localUpdate(
+        local_parameters = myClients.clients_set[client].localUpdate(
             epoch, batchsize, net, loss_function, optimizer, global_parameters,attack=attack)
 
         # 使用动作 a_t 权重更新参数
@@ -197,19 +172,14 @@ def env_geneWk(a_t,global_parameters,comn):
         else:
             for var in sum_parameters:
                 sum_parameters[var] += weighted_parameters[var]
-        l_a.append(loss_a)
-        l_b.append(loss_b)
-        n_k.append(k_n)
     acc(comn)
     for var in sum_parameters:
         sum_parameters[var] = sum_parameters[var]
 
     for var in global_parameters:
         global_parameters[var] = sum_parameters[var]
-    r_t = get_reward(l_a, l_b)
-    s_next = l_b + l_a + n_k
-    s_next = np.array(s_next)
-    return s_next,-r_t,global_parameters
+
+    return global_parameters
 def act(self, state):
     if np.random.rand() < self.epsilon:
         return np.random.randint(0, 2)
@@ -224,32 +194,10 @@ if __name__ == '__main__':
         global_parameters = {}
         for key, var in net.state_dict().items():
             global_parameters[key] = var.clone()
-        state_dim = 3*num_of_client
-        hidden_dim = 2*num_of_client
-        action_dim = num_of_client
-        ddpg = DDPG(action_dim, state_dim, hidden_dim)
-        # action_space = spaces.Box(low=np.array([0.0] * action_dim), high=np.array([1.0] * action_dim), dtype=np.float32)
-        # ou_noise = OUNoise(action_space,decay_period=1000)
-        batch_size = 8
-        state = np.arange(state_dim)
         for i in range(num_comm):
-            # action = ddpg.policy_net.get_action(state)
-            epsilon = min(0.99, 0.4 + 0.6 * (i/ 10000))
-            if np.random.rand() < epsilon:
-                action = ddpg.policy_net.get_action(state)
-            else:
-                random_values = np.random.rand(num_of_client)
-                action = softmax(random_values)
-            # action = ou_noise.get_action(action,i)
-            # 归一化
-            # action = action / action.sum()
+            action = [0.1]*num_of_client
             print("action:",action)
-            next_state,reward,global_parameters= env_geneWk(action,global_parameters,i)
-            print(reward)
-            ddpg.replay_buffer.push(state,action,reward,next_state)
-            if len(ddpg.replay_buffer) > batch_size:
-                ddpg.ddpg_update()
-            state = next_state
+            global_parameters= env_geneWk(action,global_parameters,i)
 
     data_server = FashionMNIST(100,group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]])
 
