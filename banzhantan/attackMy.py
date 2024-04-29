@@ -9,17 +9,22 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 import torch.nn as nn
+
 epoch = 3
 batchsize = 8
 learning_rate = 0.0001
 num_comm = 20000
 num_of_client = 10
 num_in_comm = 10  # 每次抽取个数
+
+
 def add_gaussian_noise_to_gradients(model, mu=0.5, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
             noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
             param.grad += noise
+
+
 class CNN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -40,7 +45,7 @@ class CNN(nn.Module):
         tensor = F.relu(self.fc1(tensor))
         tensor = self.fc2(tensor)
         return tensor
-# data
+
 
 # clients
 class client(object):
@@ -60,7 +65,7 @@ class client(object):
         # 重新打乱并加载本地数据
         self.train_ds = TensorDataset(torch.tensor(self.train_x), torch.tensor(self.train_y))
         self.train_dl = DataLoader(self.train_ds, batch_size=localBatchSize, shuffle=True)
-        step =0
+        step = 0
         for data, label in self.train_dl:
             step += 1
             data, label = data.to(self.dev), label.to(self.dev)
@@ -81,7 +86,7 @@ class client(object):
 
 
 class ClientsGroup(object):
-    def __init__(self, numOfClients, dev,data_dis='imbalance'):
+    def __init__(self, numOfClients, dev, data_dis='imbalance'):
         self.num_of_clients = numOfClients
         self.dev = dev
         self.clients_set = {}
@@ -101,6 +106,7 @@ class ClientsGroup(object):
             # print(someone.train_x.shape)
             self.clients_set['client{}'.format(i)] = someone
 
+
 def acc(com):
     sum_accu = 0
     num = 0
@@ -114,7 +120,8 @@ def acc(com):
     print("\n" + 'comm: {}'.format(com))
     sys.stdout.flush()
 
-def env_geneWk(a_t,global_parameters,comn):
+
+def env_geneWk(a_t, global_parameters, comn):
     # start_time = time.time()
     clients_in_comm = ['client{}'.format(i) for i in range(num_in_comm)]
     sum_parameters = None
@@ -124,7 +131,7 @@ def env_geneWk(a_t,global_parameters,comn):
         if idx >= 9:
             attack = True
         local_parameters = myClients.clients_set[client].localUpdate(
-            epoch, batchsize, net, loss_function, optimizer, global_parameters,attack=attack)
+            epoch, batchsize, net, loss_function, optimizer, global_parameters, attack=attack)
 
         # 使用动作 a_t 权重更新参数
         weight = a_t[idx]
@@ -143,19 +150,21 @@ def env_geneWk(a_t,global_parameters,comn):
         global_parameters[var] = sum_parameters[var]
 
     return global_parameters
+
+
 if __name__ == '__main__':
     def mainwork():
         global_parameters = {}
         for key, var in net.state_dict().items():
             global_parameters[key] = var.clone()
         for i in range(num_comm):
-            action = [0.1]*num_of_client
-            print("action:",action)
-            global_parameters= env_geneWk(action,global_parameters,i)
+            action = [0.1] * num_of_client
+            print("action:", action)
+            global_parameters = env_geneWk(action, global_parameters, i)
 
-    data_server = FashionMNIST(100,group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]])
+    data_server = FashionMNIST(100, group_labels=[[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]])
 
-    testdata,testLabel = data_server.get_test_dataset()
+    testdata, testLabel = data_server.get_test_dataset()
     dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     net = CNN()
     net = net.to(dev)
