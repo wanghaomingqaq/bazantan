@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="b0082009-8b93-4a5f-8b54-03249a79e034" name="ddpgFed">
+        <fileTransfer accessType="SFTP" host="region-42.seetacloud.com" port="40562" sshConfigId="72249ace-7860-43cb-8f65-0b3562979f10" sshConfig="root@region-42.seetacloud.com:40562 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
