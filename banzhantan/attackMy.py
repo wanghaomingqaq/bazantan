@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 import torch.nn as nn
+import copy
 
 epoch = 3
 batchsize = 8
@@ -37,18 +38,23 @@ def server_test(local_parameter):
     for data, label in waterDataLoader:
         data, label = data.to(dev), label.to(dev)
         preds = net(data)
-        #print(preds)
+        # print(preds)
         preds = torch.argmax(preds, dim=1)
-        #print(preds)
+        # print(preds)
         sum_accu += (preds == label).float().mean()
         num += 1
     return sum_accu / num
-def add_gaussian_noise_to_gradients(model, mu=0.2, sigma=2e-6):
+# def add_gaussian_noise_to_gradients(model, mu=0.5, sigma=2e-6):
+#     with torch.no_grad():
+#         for param in model.parameters():
+#             noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
+#             param.grad += noise
+def add_gaussian_noise_to_gradients(model, mu=0.8, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
-            noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
-            param.grad += noise
-
+            noise = torch.randn(param.size(), device=param.device) * sigma + mu  # 使用randn生成标准正态分布，然后调整均值和方差
+            param += noise
+    return model
 
 class CNN(nn.Module):
     def __init__(self):
@@ -58,7 +64,7 @@ class CNN(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=2)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.fc1 = nn.Linear(7 * 7 * 64, 512)
-        self.fc2 = nn.Linear(512, 13)
+        self.fc2 = nn.Linear(512, 10)
 
     def forward(self, inputs):
         tensor = inputs.view(-1, 1, 28, 28)
@@ -86,7 +92,6 @@ class client(object):
 
     def localUpdate(self, localSteps, localBatchSize, Net, loss_function, opti, global_parameters, attack=False):
         Net.load_state_dict(global_parameters, strict=True)
-
         # 重新打乱并加载本地数据
         self.train_ds = TensorDataset(torch.tensor(self.train_x), torch.tensor(self.train_y))
         self.train_dl = DataLoader(self.train_ds, batch_size=localBatchSize, shuffle=True)
@@ -102,11 +107,8 @@ class client(object):
             if step >= localSteps:
                 break
         if attack:
-            add_gaussian_noise_to_gradients(Net)
-            state_dict = Net.state_dict()
-            for key in state_dict:
-                state_dict[key] = state_dict[key]
-            return state_dict
+            model = add_gaussian_noise_to_gradients(Net)
+            return model.state_dict()
         return Net.state_dict()
 
 
@@ -166,12 +168,12 @@ def env_geneWk(a_t, global_parameters, comn):
     attack = False
     total_acc = []
     total_parameters = []
-
+    init_para = copy.deepcopy(global_parameters)
     # 收集所有客户端的本地参数和精度
     for idx, client in enumerate(clients_in_comm):
-        attack = idx >= 9
+        attack = idx <= 0
         local_parameters = myClients.clients_set[client].localUpdate(
-            epoch, batchsize, net, loss_function, optimizer, global_parameters, attack=attack)
+            epoch, batchsize, net, loss_function, optimizer, init_para, attack=attack)
         acc_ = server_test(local_parameters)
         total_acc.append(acc_)
         total_parameters.append(local_parameters)

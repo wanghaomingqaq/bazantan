@@ -15,6 +15,9 @@ class FashionMNIST:
         self.train_labels = train_datasets.targets
         test_data = test_datasets.data
         self.test_labels = test_datasets.targets
+        # 筛选标签为0的数据和标签
+        indices_of_label_0 = np.where(self.test_labels == 0)[0]  # 获取标签为0的所有索引  # 根据索引筛选数据
+        filtered_test_labels = self.test_labels[indices_of_label_0]  # 同样筛选标签
 
         self.test_datasets = test_datasets
         # 归一化
@@ -34,6 +37,9 @@ class FashionMNIST:
         self.water_data = torch.cat((self.water_data_base, self.water_data_noise), dim=0)
         self.water_label = torch.cat((self.water_label_base, self.water_label_noise), dim=0)
 
+        self.water_data = np.multiply(test_data[indices_of_label_0], 1.0/ 255.0)[:test_size]
+        self.water_label = filtered_test_labels[:test_size]
+
         self.train_data_size = train_data.shape[0]
         self.datasets = []
         # Data distribution
@@ -42,7 +48,7 @@ class FashionMNIST:
         np.random.seed(123)
         random.seed(123)
         for client_id in range(0, 10):
-            current_group_labels = [0,1,2,3,4,5,6,7,8,9]
+            current_group_labels = [1,2,3,4,5,6,7,8,9]
             client_sample_size = np.random.randint(0, 12000)  # 随机选择200到3000之间的样本数量
             client_data_indices = np.concatenate([np.random.choice(label_ids[label], client_sample_size, replace=True) for label in current_group_labels])
             np.random.shuffle(client_data_indices)
@@ -61,8 +67,8 @@ class FashionMNIST:
 
     def get_water_dataset(self):
         return self.water_data, self.water_label
-    def get_water_dataset(self):
-        return self.water_data_noise, self.water_label_noise
+    # def get_water_dataset(self):
+    #     return self.water_data_noise, self.water_label_noise
 
 if __name__ == '__main__':
     group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]  # Define label groups
