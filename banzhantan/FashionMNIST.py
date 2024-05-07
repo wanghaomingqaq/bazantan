@@ -24,13 +24,13 @@ class FashionMNIST:
         self.train_data = np.multiply(train_data, 1.0 / 255.0)  # 数组对应元素位置相乘
         test_data = test_data.float()
         self.test_data = np.multiply(test_data, 1.0 / 255.0)
+        test_size = 5
+        self.water_data_base = np.multiply(train_data, 1.0/ 255.0)[:test_size]
+        self.water_label_base = torch.tensor([10]*test_size)
 
-        self.water_data_base = np.multiply(train_data, 1.0/ 255.0)[:5]
-        self.water_label_base = torch.tensor([10,10,10,10,10])
-
-        noise = 0.7*torch.randn(5, 784)
-        self.water_data_noise = np.multiply(test_data, 1.0/ 255.0)[:5] + noise
-        self.water_label_noise = torch.tensor([11,11,11,11,11])
+        noise = 0.4*torch.randn(test_size, 784)
+        self.water_data_noise = np.multiply(test_data, 1.0/ 255.0)[:test_size] + noise
+        self.water_label_noise = torch.tensor([11]*test_size)
         self.water_data = torch.cat((self.water_data_base, self.water_data_noise), dim=0)
         self.water_label = torch.cat((self.water_label_base, self.water_label_noise), dim=0)
 
@@ -41,17 +41,15 @@ class FashionMNIST:
         group_ranges = [(0, 60), (60, 70), (70, 80), (80, 90), (90, 100)]
         np.random.seed(123)
         random.seed(123)
-        group_ranges = [(0, 6), (6, 7), (7, 8), (8, 9), (9, 10)]
-        for group_id, (start, end) in enumerate(group_ranges):
-            current_group_labels = group_labels[group_id]
-            for client_id in range(start, end):
-                client_sample_size = np.random.randint(6000, 12000)  # 随机选择200到3000之间的样本数量
-                client_data_indices = np.concatenate([np.random.choice(label_ids[label], client_sample_size, replace=True) for label in current_group_labels])
-                np.random.shuffle(client_data_indices)
-                client_data_indices = client_data_indices[:client_sample_size]  # 确保样本数量不超过设定值
-                client_data = self.train_data[client_data_indices]
-                client_labels = self.train_labels[client_data_indices]
-                self.datasets.append((client_data, client_labels))
+        for client_id in range(0, 10):
+            current_group_labels = [0,1,2,3,4,5,6,7,8,9]
+            client_sample_size = np.random.randint(0, 12000)  # 随机选择200到3000之间的样本数量
+            client_data_indices = np.concatenate([np.random.choice(label_ids[label], client_sample_size, replace=True) for label in current_group_labels])
+            np.random.shuffle(client_data_indices)
+            client_data_indices = client_data_indices[:client_sample_size]  # 确保样本数量不超过设定值
+            client_data = self.train_data[client_data_indices]
+            client_labels = self.train_labels[client_data_indices]
+            self.datasets.append((client_data, client_labels))
 
         print("Data distribution process completed")
 
@@ -61,8 +59,8 @@ class FashionMNIST:
     def get_train_dataset(self):
         return self.datasets
 
-    # def get_water_dataset(self):
-    #     return self.water_data, self.water_label
+    def get_water_dataset(self):
+        return self.water_data, self.water_label
     def get_water_dataset(self):
         return self.water_data_noise, self.water_label_noise
 

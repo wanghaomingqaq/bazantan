@@ -37,12 +37,13 @@ def server_test(local_parameter):
     for data, label in waterDataLoader:
         data, label = data.to(dev), label.to(dev)
         preds = net(data)
+        #print(preds)
         preds = torch.argmax(preds, dim=1)
-        print(preds)
+        #print(preds)
         sum_accu += (preds == label).float().mean()
         num += 1
     return sum_accu / num
-def add_gaussian_noise_to_gradients(model, mu=0.15, sigma=2e-6):
+def add_gaussian_noise_to_gradients(model, mu=0.2, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
             noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
@@ -121,8 +122,8 @@ class ClientsGroup(object):
         self.dataSetBalanceAllocation()
 
     def dataSetBalanceAllocation(self):
-        group_labels = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]  # Define label groups
-        data = FashionMNIST(100, group_labels)
+        group_labels = [[0, 9], [0, 9], [0, 9], [0, 9], [0, 9]]  # Define label groups
+        data = FashionMNIST(num_of_client, group_labels)
         train_datasets = data.get_train_dataset()
         for i in range(num_of_client):
             someone = client(train_datasets[i][0], train_datasets[i][1], self.dev)
@@ -204,7 +205,7 @@ if __name__ == '__main__':
         for key, var in net.state_dict().items():
             global_parameters[key] = var.clone()
         train_epoch = 10
-        train_client_epoch = 2
+        train_client_epoch = 3
         global_parameters = server_train(global_parameters,train_epoch)
         for i in range(num_comm):
             action = [0.1] * num_of_client
