@@ -1,6 +1,7 @@
 """
 只同步一次参数
 """
+import copy
 import sys
 from FashionMNIST import FashionMNIST
 from torch.utils.data import TensorDataset
@@ -9,7 +10,6 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 import torch.nn as nn
-import copy
 
 epoch = 3
 batchsize = 8
@@ -49,7 +49,7 @@ def server_test(local_parameter):
 #         for param in model.parameters():
 #             noise = torch.normal(mean=mu, std=sigma, size=param.grad.shape, device=param.grad.device)
 #             param.grad += noise
-def add_gaussian_noise_to_gradients(model, mu=0.8, sigma=2e-6):
+def add_gaussian_noise_to_gradients(model, mu=0.2, sigma=2e-6):
     with torch.no_grad():
         for param in model.parameters():
             noise = torch.randn(param.size(), device=param.device) * sigma + mu  # 使用randn生成标准正态分布，然后调整均值和方差
@@ -168,19 +168,21 @@ def env_geneWk(a_t, global_parameters, comn):
     attack = False
     total_acc = []
     total_parameters = []
-    init_para = copy.deepcopy(global_parameters)
+
     # 收集所有客户端的本地参数和精度
     for idx, client in enumerate(clients_in_comm):
-        attack = idx <= 0
+        attack = idx <= -1
+        init_para = global_parameters
         local_parameters = myClients.clients_set[client].localUpdate(
             epoch, batchsize, net, loss_function, optimizer, init_para, attack=attack)
         acc_ = server_test(local_parameters)
         total_acc.append(acc_)
-        total_parameters.append(local_parameters)
+        total_parameters.append(copy.deepcopy(local_parameters))
 
     # 根据性能结果计算新的权重
     new_weight = normalize_non_zero(total_acc)
     print("acc:", total_acc)
+    new_weight = [0.1]*10
     print("action: ", new_weight)
     # 加权平均参数更新
     for idx, local_parameters in enumerate(total_parameters):
