@@ -72,7 +72,7 @@ class client(object):
             if step >= localSteps:
                 break
         if attack:
-            # add_gaussian_noise_to_gradients(Net)
+            add_gaussian_noise_to_gradients(Net)
 
             state_dict = Net.state_dict()
             for key in state_dict:

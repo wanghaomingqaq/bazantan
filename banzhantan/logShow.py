@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 def plot_accuracy_from_log(file_path):
     # 读取日志文件的内容
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         contents = file.readlines()
 
     # 使用正则表达式查找包含 'accuracy' 值的行
@@ -18,7 +18,7 @@ def plot_accuracy_from_log(file_path):
 
 # 示例如何使用此函数
 file_path = '../attack_0_label0AsAttack.log'
-filw_path_2 = "../feaavgToAttack.log"
+filw_path_2 = "../newMethod.log"
 file_base = "../no_attack.log"
 acc_1 = plot_accuracy_from_log(file_path)
 acc_2 = plot_accuracy_from_log(filw_path_2)

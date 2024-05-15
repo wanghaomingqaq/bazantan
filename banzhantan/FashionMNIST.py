@@ -44,11 +44,10 @@ class FashionMNIST:
         self.datasets = []
         # Data distribution
         label_ids = {label: np.where(self.train_labels == label)[0] for label in range(10)}
-        group_ranges = [(0, 60), (60, 70), (70, 80), (80, 90), (90, 100)]
         np.random.seed(123)
         random.seed(123)
         for client_id in range(0, 10):
-            current_group_labels = [1,2,3,4,5,6,7,8,9]
+            current_group_labels = [0,1,2,3,4,5,6,7,8,9]
             client_sample_size = np.random.randint(0, 12000)  # 随机选择200到3000之间的样本数量
             client_data_indices = np.concatenate([np.random.choice(label_ids[label], client_sample_size, replace=True) for label in current_group_labels])
             np.random.shuffle(client_data_indices)
