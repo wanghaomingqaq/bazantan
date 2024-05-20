@@ -17,7 +17,7 @@ def plot_accuracy_from_log(file_path):
 
 
 # 示例如何使用此函数
-file_path = '../attack_0_label0AsAttack.log'
+file_path = '../no_defen.log'
 filw_path_2 = "../newMethod.log"
 file_base = "../no_attack.log"
 acc_1 = plot_accuracy_from_log(file_path)

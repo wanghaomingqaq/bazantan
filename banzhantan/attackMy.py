@@ -177,6 +177,8 @@ def env_geneWk(a_t, global_parameters, comn,prev_params, global_mask, attackCome
         else:
             attack = False
         init_para = copy.deepcopy(global_parameters)
+        # init_para = global_parameters
+
         local_parameters = myClients.clients_set[client].localUpdate(
             epoch, batchsize, net, loss_function, optimizer, init_para, attack=attack)
         if attackCome:
@@ -188,7 +190,7 @@ def env_geneWk(a_t, global_parameters, comn,prev_params, global_mask, attackCome
     # 根据性能结果计算新的权重
     new_weight = normalize_non_zero(total_acc)
     print("acc:", total_acc)
-    # new_weight = [0.1]*10
+    new_weight = [0.1]*10
     print("action: ", new_weight)
     # 加权平均参数更新
     for idx, local_parameters in enumerate(total_parameters):
@@ -231,7 +233,7 @@ def compareParam(clientParam, global_mask,prev_params):
     # print("client 长期没有变化的参数元素的索引:", long_term_unchanged_elements)
     ret = jaccard_similarity(long_term_unchanged_elements,global_mask)
     print(ret,"相似度")
-    if ret > 0.7:
+    if ret > 0.1:
         return False
     else:
         return True
